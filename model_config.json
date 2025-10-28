@@ -1,0 +1,56 @@
+{
+    "best_model": "Logistic Regression",
+    "best_model_type": "LogisticRegression",
+    "top_5_features": [
+        "BMI",
+        "SystolicBP",
+        "Blood Sugar Level",
+        "Hemoglobin Level",
+        "DiastolicBP"
+    ],
+    "risk_labels": {
+        "0": "Low",
+        "1": "Moderate",
+        "2": "High"
+    },
+    "balanced_accuracy": 0.9057657657657657,
+    "accuracy": 0.9040404040404041,
+    "precision": 0.9041830383821727,
+    "recall": 0.9040404040404041,
+    "f1_score": 0.9038914033649559,
+    "target_achieved": false,
+    "scaler_used": true,
+    "data_source": "realistic_local_health_office",
+    "feature_ranges": {
+        "BMI": {
+            "min": 18.5,
+            "max": 35.0,
+            "mean": 26.362778904665316,
+            "std": 4.670191029234712
+        },
+        "SystolicBP": {
+            "min": 90.0,
+            "max": 174.0,
+            "mean": 126.3316430020284,
+            "std": 22.691319763904296
+        },
+        "Blood Sugar Level": {
+            "min": 4.0,
+            "max": 18.0,
+            "mean": 9.524137931034481,
+            "std": 3.7631428593584517
+        },
+        "Hemoglobin Level": {
+            "min": 9.5,
+            "max": 14.0,
+            "mean": 11.600608519269777,
+            "std": 1.135991543405482
+        },
+        "DiastolicBP": {
+            "min": 60.0,
+            "max": 112.0,
+            "mean": 82.10851926977688,
+            "std": 12.969679143855181
+        }
+    }
+}

@@ -1,0 +1,2 @@
+Timestamp,Patient_ID,Age,BMI,SystolicBP,DiastolicBP,Blood_Sugar,Hemoglobin,Risk_Level,Confidence,Health_Worker
+2025-10-28 18:50:32,N/A,40,39.54214360041623,160,100,14.999999999999966,10.000000000000007,High,83.1%,N/A
