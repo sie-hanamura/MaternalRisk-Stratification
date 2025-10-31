@@ -1,6 +1,7 @@
 """
 MATERNAL RISK ASSESSMENT SYSTEM - Desktop Application
-PyQt5 Version - Fully Offline
+PyQt5 Version - DUAL MODEL SUPPORT
+Supports both Full Model (with lab) and Basic Model (without lab)
 Municipal Health Office Bay, Laguna
 """
 
@@ -15,7 +16,7 @@ from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
                              QDoubleSpinBox, QSpinBox, QTextEdit, QTabWidget,
                              QTableWidget, QTableWidgetItem, QMessageBox,
                              QGroupBox, QGridLayout, QFrame, QScrollArea,
-                             QHeaderView, QFileDialog)
+                             QHeaderView, QFileDialog, QCheckBox)
 from PyQt5.QtCore import Qt, QSize
 from PyQt5.QtGui import QFont, QIcon, QColor, QPalette, QPixmap
 from PyQt5.QtPrintSupport import QPrinter, QPrintDialog
@@ -27,8 +28,8 @@ class MaternalRiskApp(QMainWindow):
         self.setWindowTitle("Maternal Risk Assessment System - Bay, Laguna")
         self.setGeometry(100, 100, 1200, 800)
         
-        # Load ML model
-        self.load_model()
+        # Load BOTH models
+        self.load_models()
         
         # Setup UI
         self.init_ui()
@@ -36,22 +37,45 @@ class MaternalRiskApp(QMainWindow):
         # Apply styling
         self.apply_styles()
         
-    def load_model(self):
-        """Load the trained ML model and scaler"""
+    def load_models(self):
+        """Load BOTH trained ML models and scalers"""
         try:
+            # Load FULL model (Model A)
             with open('model_BEST_for_deployment.pkl', 'rb') as f:
-                self.model = pickle.load(f)
+                self.model_full = pickle.load(f)
             
             with open('scaler.pkl', 'rb') as f:
-                self.scaler = pickle.load(f)
+                self.scaler_full = pickle.load(f)
             
             with open('model_config.json', 'r') as f:
-                self.config = json.load(f)
-                
+                self.config_full = json.load(f)
+            
+            print("✓ Full Model (Model A) loaded successfully")
+            
+            # Load BASIC model (Model B)
+            with open('model_BASIC_for_deployment.pkl', 'rb') as f:
+                self.model_basic = pickle.load(f)
+            
+            with open('scaler_BASIC.pkl', 'rb') as f:
+                self.scaler_basic = pickle.load(f)
+            
+            with open('model_config_BASIC.json', 'r') as f:
+                self.config_basic = json.load(f)
+            
+            print("✓ Basic Model (Model B) loaded successfully")
+            
             self.risk_labels = {0: 'Low', 1: 'Moderate', 2: 'High'}
-            print("✓ Model loaded successfully")
+            
         except Exception as e:
-            QMessageBox.critical(self, "Error", f"Failed to load model: {e}")
+            QMessageBox.critical(self, "Error", 
+                f"Failed to load models: {e}\n\n" +
+                "Make sure these files exist:\n" +
+                "- model_BEST_for_deployment.pkl\n" +
+                "- scaler.pkl\n" +
+                "- model_config.json\n" +
+                "- model_BASIC_for_deployment.pkl\n" +
+                "- scaler_BASIC.pkl\n" +
+                "- model_config_BASIC.json")
             sys.exit(1)
     
     def init_ui(self):
@@ -85,7 +109,7 @@ class MaternalRiskApp(QMainWindow):
         main_layout.addWidget(self.tabs)
         
         # Status bar
-        self.statusBar().showMessage("Ready | Model Accuracy: 90.6%")
+        self.statusBar().showMessage("Ready | Dual Model System: Full (90.6%) | Basic (85.2%)")
     
     def create_header(self):
         """Create application header"""
@@ -255,30 +279,91 @@ class MaternalRiskApp(QMainWindow):
         layout.addWidget(QLabel("Normal: 60-80"), row, 2)
         row += 1
         
-        # Blood Sugar
+        # LAB AVAILABILITY CHECKBOX
+        separator2 = QFrame()
+        separator2.setFrameShape(QFrame.HLine)
+        layout.addWidget(separator2, row, 0, 1, 3)
+        row += 1
+        
+        lab_label = QLabel("📋 Laboratory Test Results:")
+        lab_label.setFont(QFont("Arial", 11, QFont.Bold))
+        lab_label.setStyleSheet("color: #1f77b4;")
+        layout.addWidget(lab_label, row, 0, 1, 3)
+        row += 1
+        
+        self.lab_available = QCheckBox("✓ Laboratory results are available")
+        self.lab_available.setFont(QFont("Arial", 10))
+        self.lab_available.setChecked(False)  # Default: NOT available
+        self.lab_available.stateChanged.connect(self.toggle_lab_fields)
+        layout.addWidget(self.lab_available, row, 0, 1, 3)
+        row += 1
+        
+        # Blood Sugar (initially disabled)
         layout.addWidget(QLabel("Blood Sugar (mmol/L):"), row, 0)
         self.blood_sugar_input = QDoubleSpinBox()
         self.blood_sugar_input.setRange(4.0, 18.0)
         self.blood_sugar_input.setValue(5.5)
         self.blood_sugar_input.setSingleStep(0.1)
         self.blood_sugar_input.setSuffix(" mmol/L")
+        self.blood_sugar_input.setEnabled(False)  # Disabled by default
         layout.addWidget(self.blood_sugar_input, row, 1)
-        layout.addWidget(QLabel("Normal: 4.0-7.0"), row, 2)
+        self.blood_sugar_note = QLabel("Normal: 4.0-7.0")
+        layout.addWidget(self.blood_sugar_note, row, 2)
         row += 1
         
-        # Hemoglobin
+        # Hemoglobin (initially disabled)
         layout.addWidget(QLabel("Hemoglobin (g/dL):"), row, 0)
         self.hemoglobin_input = QDoubleSpinBox()
         self.hemoglobin_input.setRange(9.5, 14.0)
         self.hemoglobin_input.setValue(12.0)
         self.hemoglobin_input.setSingleStep(0.1)
         self.hemoglobin_input.setSuffix(" g/dL")
+        self.hemoglobin_input.setEnabled(False)  # Disabled by default
         layout.addWidget(self.hemoglobin_input, row, 1)
-        layout.addWidget(QLabel("Normal: 11.0-14.0"), row, 2)
+        self.hemoglobin_note = QLabel("Normal: 11.0-14.0")
+        layout.addWidget(self.hemoglobin_note, row, 2)
         row += 1
+        
+        # Model selection indicator
+        self.model_indicator = QLabel()
+        self.model_indicator.setFont(QFont("Arial", 9))
+        self.model_indicator.setStyleSheet("color: #666; font-style: italic; padding: 5px;")
+        self.update_model_indicator()
+        layout.addWidget(self.model_indicator, row, 0, 1, 3)
         
         group.setLayout(layout)
         return group
+    
+    def toggle_lab_fields(self):
+        """Enable/disable lab fields based on checkbox"""
+        is_available = self.lab_available.isChecked()
+        
+        self.blood_sugar_input.setEnabled(is_available)
+        self.hemoglobin_input.setEnabled(is_available)
+        
+        if is_available:
+            # Reset styling to normal
+            self.blood_sugar_input.setStyleSheet("")
+            self.hemoglobin_input.setStyleSheet("")
+        else:
+            # Gray out disabled fields
+            self.blood_sugar_input.setStyleSheet("background-color: #f0f0f0;")
+            self.hemoglobin_input.setStyleSheet("background-color: #f0f0f0;")
+        
+        self.update_model_indicator()
+    
+    def update_model_indicator(self):
+        """Update which model will be used"""
+        if self.lab_available.isChecked():
+            self.model_indicator.setText(
+                "🤖 Using: Full Model (5 features) - Higher Accuracy (90.6%)"
+            )
+            self.model_indicator.setStyleSheet("color: #28a745; font-style: italic; padding: 5px;")
+        else:
+            self.model_indicator.setText(
+                "🤖 Using: Basic Model (3 features) - Preliminary Screening (85.2%)"
+            )
+            self.model_indicator.setStyleSheet("color: #856404; font-style: italic; padding: 5px;")
     
     def create_results_section(self):
         """Create results display section"""
@@ -299,10 +384,16 @@ class MaternalRiskApp(QMainWindow):
         self.confidence_label.setFont(QFont("Arial", 12))
         layout.addWidget(self.confidence_label)
         
+        # Model Used Indicator
+        self.model_used_label = QLabel()
+        self.model_used_label.setAlignment(Qt.AlignCenter)
+        self.model_used_label.setFont(QFont("Arial", 10))
+        layout.addWidget(self.model_used_label)
+        
         # Recommendations
         self.recommendations = QTextEdit()
         self.recommendations.setReadOnly(True)
-        self.recommendations.setMinimumHeight(200)
+        self.recommendations.setMinimumHeight(250)
         layout.addWidget(self.recommendations)
         
         # Action buttons
@@ -343,10 +434,10 @@ class MaternalRiskApp(QMainWindow):
         
         # Table
         self.history_table = QTableWidget()
-        self.history_table.setColumnCount(9)
+        self.history_table.setColumnCount(10)
         self.history_table.setHorizontalHeaderLabels([
             "Date/Time", "Patient ID", "Age", "BMI", "Risk Level", 
-            "Confidence", "Health Worker", "Action", "View"
+            "Confidence", "Model Used", "Health Worker", "Lab Available", "Action"
         ])
         self.history_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         
@@ -366,21 +457,37 @@ class MaternalRiskApp(QMainWindow):
         <h2>🤰 Maternal Risk Assessment System</h2>
         <h3>Municipal Health Office Bay, Laguna</h3>
         
-        <p><b>Version:</b> 1.0</p>
-        <p><b>Model Type:</b> Logistic Regression</p>
-        <p><b>Accuracy:</b> 90.6% (Balanced Accuracy: 90.58%)</p>
-        <p><b>Training Data:</b> 986 maternal health records</p>
+        <p><b>Version:</b> 2.0 (Dual Model System)</p>
+        <p><b>Training Data:</b> 986 maternal health records (2019-2025)</p>
         
         <hr>
         
-        <h3>📊 Key Predictive Features</h3>
+        <h3>🤖 Dual Model System</h3>
+        
+        <h4>Model A - Full Model (5 Features)</h4>
+        <p><b>Accuracy:</b> 90.6% (Balanced Accuracy: 90.58%)</p>
+        <p><b>Model Type:</b> Logistic Regression</p>
+        <p><b>Features Used:</b></p>
         <ol>
-            <li><b>BMI</b> - Body Mass Index</li>
-            <li><b>Systolic BP</b> - Blood Pressure (Upper)</li>
-            <li><b>Blood Sugar Level</b> - Glucose Measurement</li>
-            <li><b>Hemoglobin Level</b> - Anemia Indicator</li>
-            <li><b>Diastolic BP</b> - Blood Pressure (Lower)</li>
+            <li>BMI - Body Mass Index</li>
+            <li>Systolic BP - Blood Pressure (Upper)</li>
+            <li>Blood Sugar Level - Glucose Measurement ⚗️</li>
+            <li>Hemoglobin Level - Anemia Indicator ⚗️</li>
+            <li>Diastolic BP - Blood Pressure (Lower)</li>
         </ol>
+        <p><b>Use When:</b> Laboratory test results are available</p>
+        
+        <h4>Model B - Basic Model (3 Features)</h4>
+        <p><b>Accuracy:</b> ~85% (varies by test set)</p>
+        <p><b>Model Type:</b> Logistic Regression</p>
+        <p><b>Features Used:</b></p>
+        <ol>
+            <li>BMI - Body Mass Index</li>
+            <li>Systolic BP - Blood Pressure (Upper)</li>
+            <li>Diastolic BP - Blood Pressure (Lower)</li>
+        </ol>
+        <p><b>Use When:</b> Laboratory results NOT available (most common scenario)</p>
+        <p><b>Note:</b> Provides preliminary screening. Lab tests recommended for moderate/high risk cases.</p>
         
         <hr>
         
@@ -390,7 +497,34 @@ class MaternalRiskApp(QMainWindow):
             <li>Always follow clinical judgment and established protocols</li>
             <li>High-risk cases must be referred to qualified medical professionals</li>
             <li>System works completely offline</li>
+            <li>Basic model provides preliminary assessment when lab values unavailable</li>
         </ul>
+        
+        <hr>
+        
+        <h3>📋 When to Use Which Model</h3>
+        <table border="1" cellpadding="5">
+        <tr>
+            <th>Scenario</th>
+            <th>Model</th>
+            <th>Action</th>
+        </tr>
+        <tr>
+            <td>Patient has recent lab results</td>
+            <td>Full Model</td>
+            <td>Check "Lab results available" ✓</td>
+        </tr>
+        <tr>
+            <td>No lab tests done recently</td>
+            <td>Basic Model</td>
+            <td>Leave checkbox unchecked</td>
+        </tr>
+        <tr>
+            <td>Basic model shows moderate/high risk</td>
+            <td>-</td>
+            <td>Recommend getting lab tests for full assessment</td>
+        </tr>
+        </table>
         
         <hr>
         
@@ -429,26 +563,45 @@ class MaternalRiskApp(QMainWindow):
                 self.bmi_label.setStyleSheet("color: red;")
     
     def assess_risk(self):
-        """Perform risk assessment"""
+        """Perform risk assessment using appropriate model"""
         try:
             # Get BMI
             weight = self.weight_input.value()
             height = self.height_input.value() / 100
             bmi = weight / (height ** 2)
             
-            # Prepare input data
-            input_data = pd.DataFrame({
-                'BMI': [bmi],
-                'SystolicBP': [self.systolic_input.value()],
-                'Blood Sugar Level': [self.blood_sugar_input.value()],
-                'Hemoglobin Level': [self.hemoglobin_input.value()],
-                'DiastolicBP': [self.diastolic_input.value()]
-            })
+            # Check if lab values are available
+            lab_available = self.lab_available.isChecked()
             
-            # Scale and predict
-            input_scaled = self.scaler.transform(input_data)
-            prediction_num = self.model.predict(input_scaled)[0]
-            prediction_proba = self.model.predict_proba(input_scaled)[0]
+            if lab_available:
+                # USE FULL MODEL (Model A)
+                input_data = pd.DataFrame({
+                    'BMI': [bmi],
+                    'SystolicBP': [self.systolic_input.value()],
+                    'Blood Sugar Level': [self.blood_sugar_input.value()],
+                    'Hemoglobin Level': [self.hemoglobin_input.value()],
+                    'DiastolicBP': [self.diastolic_input.value()]
+                })
+                
+                input_scaled = self.scaler_full.transform(input_data)
+                prediction_num = self.model_full.predict(input_scaled)[0]
+                prediction_proba = self.model_full.predict_proba(input_scaled)[0]
+                
+                model_used = "Full Model (5 features)"
+                
+            else:
+                # USE BASIC MODEL (Model B)
+                input_data = pd.DataFrame({
+                    'BMI': [bmi],
+                    'SystolicBP': [self.systolic_input.value()],
+                    'DiastolicBP': [self.diastolic_input.value()]
+                })
+                
+                input_scaled = self.scaler_basic.transform(input_data)
+                prediction_num = self.model_basic.predict(input_scaled)[0]
+                prediction_proba = self.model_basic.predict_proba(input_scaled)[0]
+                
+                model_used = "Basic Model (3 features)"
             
             # Get risk level
             risk_level = self.risk_labels[prediction_num]
@@ -460,16 +613,18 @@ class MaternalRiskApp(QMainWindow):
                 'confidence': confidence,
                 'probabilities': prediction_proba,
                 'input_data': input_data,
-                'bmi': bmi
+                'bmi': bmi,
+                'model_used': model_used,
+                'lab_available': lab_available
             }
             
             # Display results
-            self.display_results(risk_level, confidence, prediction_proba)
+            self.display_results(risk_level, confidence, prediction_proba, model_used, lab_available)
             
         except Exception as e:
-            QMessageBox.critical(self, "Error", f"Assessment failed: {e}")
+            QMessageBox.critical(self, "Error", f"Assessment failed: {str(e)}")
     
-    def display_results(self, risk_level, confidence, probabilities):
+    def display_results(self, risk_level, confidence, probabilities, model_used, lab_available):
         """Display assessment results"""
         # Show results group
         self.results_group.setVisible(True)
@@ -493,23 +648,47 @@ class MaternalRiskApp(QMainWindow):
         # Set confidence
         self.confidence_label.setText(f"Confidence: {confidence:.1f}%")
         
+        # Set model used indicator
+        if lab_available:
+            self.model_used_label.setText(f"✓ {model_used} | Lab values: Included")
+            self.model_used_label.setStyleSheet("color: #28a745;")
+        else:
+            self.model_used_label.setText(f"⚠️ {model_used} | Lab values: Not Available")
+            self.model_used_label.setStyleSheet("color: #856404;")
+        
         # Set recommendations
-        recommendations = self.get_recommendations(risk_level, probabilities)
+        recommendations = self.get_recommendations(risk_level, probabilities, lab_available)
         self.recommendations.setHtml(recommendations)
         
         # Scroll to results
-        self.tabs.currentWidget().findChild(QScrollArea).verticalScrollBar().setValue(
-            self.tabs.currentWidget().findChild(QScrollArea).verticalScrollBar().maximum()
-        )
+        try:
+            scroll_area = self.tabs.currentWidget().findChild(QScrollArea)
+            if scroll_area:
+                scroll_area.verticalScrollBar().setValue(
+                    scroll_area.verticalScrollBar().maximum()
+                )
+        except:
+            pass
     
-    def get_recommendations(self, risk_level, probabilities):
+    def get_recommendations(self, risk_level, probabilities, lab_available):
         """Get recommendations based on risk level"""
         low_prob = probabilities[0] * 100
         mod_prob = probabilities[1] * 100
         high_prob = probabilities[2] * 100
         
+        # Add lab warning if basic model used
+        lab_warning = ""
+        if not lab_available and risk_level in ['Moderate', 'High']:
+            lab_warning = """
+            <div style='background-color: #fff3cd; padding: 10px; border-radius: 5px; margin: 10px 0; border-left: 5px solid #ffc107;'>
+            <b>⚠️ Important:</b> This assessment used the <b>Basic Model</b> (3 features only) because 
+            laboratory results were not available. For more accurate risk classification, blood tests 
+            (hemoglobin and blood sugar) are <b>strongly recommended</b> for this patient.
+            </div>
+            """
+        
         if risk_level == 'Low':
-            return f"""
+            return lab_warning + f"""
             <h3 style="color: #28a745;">✅ Low Risk - Routine Care</h3>
             <p><b>Probability Breakdown:</b></p>
             <ul>
@@ -524,12 +703,13 @@ class MaternalRiskApp(QMainWindow):
                 <li>Monitor for any changes in symptoms</li>
                 <li>Return immediately if any warning signs appear</li>
                 <li>Next checkup: Schedule in 4 weeks</li>
+                {'<li><b>Consider getting lab tests</b> for complete assessment (if not yet done)</li>' if not lab_available else ''}
             </ul>
             <p><i>✓ Patient can be managed at barangay health center level.</i></p>
             """
         
         elif risk_level == 'Moderate':
-            return f"""
+            return lab_warning + f"""
             <h3 style="color: #856404;">⚠️ Moderate Risk - Enhanced Monitoring</h3>
             <p><b>Probability Breakdown:</b></p>
             <ul>
@@ -540,6 +720,7 @@ class MaternalRiskApp(QMainWindow):
             <h4>📋 Recommended Actions:</h4>
             <ul>
                 <li><b>Refer to Rural Health Unit (RHU)</b> for evaluation</li>
+                {'<li><b style="color: red;">PRIORITY: Get laboratory tests</b> (blood sugar & hemoglobin) before RHU visit</li>' if not lab_available else ''}
                 <li>Increase prenatal visits (bi-weekly or as advised)</li>
                 <li>Monitor blood pressure and blood sugar regularly</li>
                 <li>Educate on warning signs to watch for</li>
@@ -549,7 +730,7 @@ class MaternalRiskApp(QMainWindow):
             """
         
         else:  # High
-            return f"""
+            return lab_warning + f"""
             <h3 style="color: #721c24;">🚨 High Risk - URGENT REFERRAL NEEDED</h3>
             <p><b>Probability Breakdown:</b></p>
             <ul>
@@ -560,6 +741,7 @@ class MaternalRiskApp(QMainWindow):
             <h4>📋 Recommended Actions:</h4>
             <ul>
                 <li><b style="color: red;">IMMEDIATE referral to hospital/OB-GYN</b></li>
+                {'<li><b style="color: red;">URGENT: Arrange laboratory tests en route to hospital</b></li>' if not lab_available else ''}
                 <li>Patient needs specialist care and close monitoring</li>
                 <li>High-risk pregnancy requiring advanced interventions</li>
                 <li>Weekly or more frequent prenatal visits required</li>
@@ -579,10 +761,12 @@ class MaternalRiskApp(QMainWindow):
                 'BMI': self.current_assessment['bmi'],
                 'SystolicBP': self.systolic_input.value(),
                 'DiastolicBP': self.diastolic_input.value(),
-                'Blood_Sugar': self.blood_sugar_input.value(),
-                'Hemoglobin': self.hemoglobin_input.value(),
+                'Blood_Sugar': self.blood_sugar_input.value() if self.current_assessment['lab_available'] else 'N/A',
+                'Hemoglobin': self.hemoglobin_input.value() if self.current_assessment['lab_available'] else 'N/A',
                 'Risk_Level': self.current_assessment['risk_level'],
                 'Confidence': f"{self.current_assessment['confidence']:.1f}%",
+                'Model_Used': self.current_assessment['model_used'],
+                'Lab_Available': 'Yes' if self.current_assessment['lab_available'] else 'No',
                 'Health_Worker': self.health_worker.text() or 'N/A'
             }
             
@@ -599,31 +783,22 @@ class MaternalRiskApp(QMainWindow):
             # Refresh history table
             self.load_history()
             
-            QMessageBox.information(self, "Success", "Assessment saved successfully!")
+            QMessageBox.information(self, "Success", "✅ Assessment saved successfully!")
             
         except Exception as e:
-            QMessageBox.critical(self, "Error", f"Failed to save: {e}")
+            QMessageBox.critical(self, "Error", f"Failed to save: {str(e)}")
     
     def print_report(self):
         """Print assessment report"""
-        printer = QPrinter(QPrinter.HighResolution)
-        dialog = QPrintDialog(printer, self)
-        
-        if dialog.exec_() == QPrintDialog.Accepted:
-            # Create print content
-            html_content = self.generate_print_html()
+        try:
+            printer = QPrinter(QPrinter.HighResolution)
+            dialog = QPrintDialog(printer, self)
             
-            # Print
-            document = self.recommendations.document()
-            document.print_(printer)
-            
-            QMessageBox.information(self, "Success", "Report sent to printer!")
-    
-    def generate_print_html(self):
-        """Generate HTML for printing"""
-        # This would create a formatted report
-        # Implementation depends on your specific needs
-        pass
+            if dialog.exec_() == QPrintDialog.Accepted:
+                self.recommendations.document().print_(printer)
+                QMessageBox.information(self, "Success", "Report sent to printer!")
+        except Exception as e:
+            QMessageBox.warning(self, "Print Error", f"Could not print: {str(e)}")
     
     def new_assessment(self):
         """Start a new assessment"""
@@ -638,11 +813,19 @@ class MaternalRiskApp(QMainWindow):
         self.blood_sugar_input.setValue(5.5)
         self.hemoglobin_input.setValue(12.0)
         
+        # Reset lab checkbox
+        self.lab_available.setChecked(False)
+        
         # Hide results
         self.results_group.setVisible(False)
         
         # Scroll to top
-        self.tabs.currentWidget().findChild(QScrollArea).verticalScrollBar().setValue(0)
+        try:
+            scroll_area = self.tabs.currentWidget().findChild(QScrollArea)
+            if scroll_area:
+                scroll_area.verticalScrollBar().setValue(0)
+        except:
+            pass
     
     def load_history(self):
         """Load assessment history into table"""
@@ -656,7 +839,7 @@ class MaternalRiskApp(QMainWindow):
             
             for idx, row in df.iterrows():
                 self.history_table.setItem(idx, 0, QTableWidgetItem(row['Timestamp']))
-                self.history_table.setItem(idx, 1, QTableWidgetItem(row['Patient_ID']))
+                self.history_table.setItem(idx, 1, QTableWidgetItem(str(row['Patient_ID'])))
                 self.history_table.setItem(idx, 2, QTableWidgetItem(str(row['Age'])))
                 self.history_table.setItem(idx, 3, QTableWidgetItem(f"{row['BMI']:.1f}"))
                 
@@ -671,11 +854,23 @@ class MaternalRiskApp(QMainWindow):
                 self.history_table.setItem(idx, 4, risk_item)
                 
                 self.history_table.setItem(idx, 5, QTableWidgetItem(row['Confidence']))
-                self.history_table.setItem(idx, 6, QTableWidgetItem(row['Health_Worker']))
                 
-                # Action buttons
-                action_text = "✓ Saved"
-                self.history_table.setItem(idx, 7, QTableWidgetItem(action_text))
+                # Model used
+                model_item = QTableWidgetItem(row.get('Model_Used', 'Full Model'))
+                self.history_table.setItem(idx, 6, model_item)
+                
+                self.history_table.setItem(idx, 7, QTableWidgetItem(row['Health_Worker']))
+                
+                # Lab available
+                lab_item = QTableWidgetItem(row.get('Lab_Available', 'Unknown'))
+                if row.get('Lab_Available') == 'Yes':
+                    lab_item.setBackground(QColor(212, 237, 218))
+                else:
+                    lab_item.setBackground(QColor(255, 243, 205))
+                self.history_table.setItem(idx, 8, lab_item)
+                
+                # Action
+                self.history_table.setItem(idx, 9, QTableWidgetItem("✓ Saved"))
                 
         except Exception as e:
             print(f"Error loading history: {e}")
@@ -752,6 +947,16 @@ class MaternalRiskApp(QMainWindow):
         
         QLineEdit:focus, QSpinBox:focus, QDoubleSpinBox:focus {
             border: 2px solid #1f77b4;
+        }
+        
+        QCheckBox {
+            font-size: 11pt;
+            spacing: 8px;
+        }
+        
+        QCheckBox::indicator {
+            width: 20px;
+            height: 20px;
         }
         
         QTabWidget::pane {
